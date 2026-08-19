@@ -1,48 +1,66 @@
-/*
-Copyright 2025 Adobe. All rights reserved.
-This file is licensed to you under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License. You may obtain a copy
-of the License at http://www.apache.org/licenses/LICENSE-2.0
+/**
+ * AEM Edge Function Entry Point
+ */
+import { SecretStoreManager } from "./lib/config";
 
-Unless required by applicable law or agreed to in writing, software distributed under
-the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
-OF ANY KIND, either express or implied. See the License for the specific language
-governing permissions and limitations under the License.
-*/
-
-/// <reference types="@fastly/js-compute" />
-
-import * as response from './lib/response.js';
-import { log } from './lib/log.js';
-import { weatherHandler } from "./weather.js";
-
-addEventListener("fetch", (event) => event.respondWith(handleRequest(event)));
+addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event));
+});
 
 async function handleRequest(event) {
-  const req = event.request;
-  const url = new URL(req.url);
+  const request = event.request;
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  };
 
-  let finalResponse;
-
-  try {
-    // Route matching
-    if (url.pathname === "/" && req.method === "GET") {
-      finalResponse = new Response("Hello World from the edge!", { status: 200 });
-    } else if (url.pathname === "/hello-world" && req.method === "GET") {
-      finalResponse = new Response("Hello World from the edge!", { status: 200 });
-    } else if (url.pathname === "/weather" && req.method === "GET") {
-      finalResponse = await weatherHandler(req, event.client);
-    } else {
-      finalResponse = response.notFound();
-    }
-  } catch (err) {
-    console.log(err);
-    finalResponse = response.error();
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers });
   }
 
-  // Log the request and response
-  log(req, finalResponse);
+  try {
+    const url = new URL(request.url);
+    const location = url.searchParams.get('location') || 'Chennai,IN';
 
-  return finalResponse;
+    const placeholderKey = 'YOUR_OPENWEATHERMAP_APPID_HERE';
+    let apiKey = placeholderKey;
+    try {
+      apiKey = await SecretStoreManager.getSecret('WEATHER_API_KEY');
+    } catch (e) {
+      // Fallback to placeholder so the response clearly indicates missing secret config.
+      console.warn('WEATHER_API_KEY not found in secret store');
+    }
+
+    if (!apiKey || apiKey === placeholderKey) {
+      return new Response(
+        JSON.stringify({ cod: 500, message: 'Missing WEATHER_API_KEY secret. Configure it in EdgeFunctions secrets and Cloud Manager.' }),
+        { status: 500, headers }
+      );
+    }
+
+    // Call OpenWeatherMap API with metric units (°C)
+    const targetUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&units=metric&appid=${apiKey}`;
+    
+    const apiResponse = await fetch(targetUrl, {
+      backend: 'openweathermap'
+    });
+
+    const data = await apiResponse.json();
+
+    return new Response(JSON.stringify(data), {
+      status: apiResponse.status || 200,
+      headers,
+    });
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ 
+        cod: 500, 
+        message: `Edge Function Error: ${error.message}` 
+      }),
+      { status: 500, headers }
+    );
+  }
 }
-

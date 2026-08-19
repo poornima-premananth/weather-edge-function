@@ -7,11 +7,11 @@ data:
         when: { reqProperty: path, equals: "/weather" }
         action:
           type: selectAemOrigin
-          originName: edgefunction-my-edge-function
+          originName: edgefunction-weather-api-proxy
           skipCache: true
       - name: route-hello-world-to-edge-function
         when: { reqProperty: path, equals: "/hello-world" }
         action:
           type: selectAemOrigin
-          originName: edgefunction-my-edge-function
+          originName: edgefunction-weather-api-proxy
           skipCache: true

@@ -2,10 +2,12 @@ kind: "EdgeFunctions"
 version: "1"
 data:
   functions:
-    - name: my-edge-function
-  # Uncomment to enable secrets
-  # secrets:
-  #   - key: API_TOKEN
-  #     value: ${{ API_TOKEN_SECRET }}
+    - name: weather-api-proxy
+      origins:
+        - name: openweathermap
+          domain: api.openweathermap.org
+  secrets:
+    - key: WEATHER_API_KEY
+      value: ${{ WEATHER_API_KEY }}
   # Uncomment to enable a KV store
   # kvs: true

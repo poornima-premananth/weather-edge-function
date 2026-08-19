@@ -17,7 +17,10 @@ service_id = ""
   [local_server.backends]
     [local_server.backends.open-meteo]
       url = "https://api.open-meteo.com"
-
+	[local_server.backends.openweathermap]
+	  url = "https://api.openweathermap.org/"
+	  override_host = "api.openweathermap.org"
+	  
   [local_server.config_stores]
     [local_server.config_stores.config_default]
       format = "inline-toml"
@@ -26,6 +29,6 @@ service_id = ""
 
   [local_server.secret_stores]
     [[local_server.secret_stores.secret_default]]
-      key = "API_TOKEN"
-      data = "helloworld"
+      key = "WEATHER_API_KEY"
+      data = "16353d8037942ee9f2613388a9741422"
 
